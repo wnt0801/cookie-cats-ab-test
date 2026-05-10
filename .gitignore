@@ -1,0 +1,8 @@
+@"
+.idea/
+__pycache__/
+*.pyc
+cursor/
+.venv/
+"@ | Out-File -FilePath .gitignore -Encoding utf8
+
