@@ -2,8 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import os
-
-os.chdir(r"C:\Users\Lenovo\PycharmProjects\cookie-cats-ab-test")
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 df = pd.read_csv("data/cookie_cats.csv")
 

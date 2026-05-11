@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-os.chdir(r"C:\Users\Lenovo\PycharmProjects\cookie-cats-ab-test")
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
