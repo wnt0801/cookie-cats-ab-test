@@ -1,61 +1,116 @@
-# Cookie Cats A/B Test Analysis
+# Cookie Cats A/B 测试分析
 
-Mobile game retention experiment analysis using Frequentist and Bayesian frameworks.
+基于 9 万用户行为数据，评估游戏付费门位置变动对用户留存的影响，输出明确业务建议。
 
-## 项目背景
+---
 
-Cookie Cats 是一款移动消除游戏。本实验测试将强制等待关卡从第 30 关移至第 40 关（gate_30 vs gate_40）对用户留存的影响。数据来源：[Kaggle - Mobile Games A/B Testing](https://www.kaggle.com/datasets/yufengsui/mobile-games-ab-testing)
+## 业务背景
 
-- 样本量：90,189 名用户
-- 核心指标：次日留存（retention_1）、7日留存（retention_7）
+Cookie Cats 是一款消消乐手游。原版在第 30 关设置付费门（gate_30），玩家需等待或付费才能继续游戏。
 
-## 分析流程
+本次实验测试将付费门移至第 40 关（gate_40）是否能提升用户留存——核心假设是：玩家能玩得更久，粘性会更高，进而带动付费转化。
 
-| 模块 | 文件 | 内容 |
-|---|---|---|
-| 01 | `analysis/01_eda.py` | 数据探索、分布可视化、指标均值对比 |
-| 02 | `analysis/02_srm_check.py` | Sample Ratio Mismatch 检验 |
-| 03 | `analysis/03_frequentist.py` | Z-test + 95% 置信区间 |
-| 04 | `analysis/04_bayesian.py` | Bayesian Beta-Binomial 模型 |
-| 05 | `analysis/05_business_summary.py` | ROI 换算 + 业务建议 |
+**实验指标**：1 日留存率（retention_1）和 7 日留存率（retention_7）
 
-## 核心结论
+---
 
-**建议保留 gate_30，不上线 gate_40。**
+## 数据集
 
-| 指标 | gate_30 | gate_40 | P(gate_30 > gate_40) |
-|---|---|---|---|
-| retention_1 | 44.82% | 44.23% | 96.3% |
-| retention_7 | 19.02% | 18.20% | **99.9%** |
+| 字段 | 含义 |
+|------|------|
+| userid | 用户唯一标识（每行对应一个用户） |
+| version | 实验分组：gate_30（对照组）/ gate_40（实验组） |
+| sum_gamerounds | 安装后 14 天内游戏局数 |
+| retention_1 | 次日是否登录（1/0） |
+| retention_7 | 第 7 日是否登录（1/0） |
 
-- 7日留存差值 0.82%，按 DAU 100万估算，gate_40 每天减少约 **8,200 名长期活跃用户**
-- 频率派与 Bayesian 结论一致，两项指标信号均指向 gate_30 更优
-- SRM 检验偏差 0.87%，大样本敏感性问题，工程上可接受
+**样本量**：90,189 用户（gate_30: 44,700 / gate_40: 45,489）
 
-## 方法说明
+**异常值处理**：sum_gamerounds 最大值为 49,854（14 天内），判断为异常用户。可视化时过滤 95 分位以上数据以突出主体分布；统计检验不涉及该字段，未做删除处理。
 
-**为什么同时使用两种框架？**
+---
 
-频率派（Z-test）给出 p 值，是工业界标准基线；Bayesian 框架输出"gate_30 更好的概率"，对业务方更直观。retention_1 在频率派下不显著（p=0.074），但 Bayesian 显示 96.3% 概率 gate_30 更优——两种框架的差异本身就是分析洞察。
+## 实验设计验证（SRM 检验）
 
-## 技术栈
+期望分组比例 1:1，实际比例约 1:1.018，偏差 0.89%。
 
-- Python 3.13
-- pandas / numpy / scipy
-- matplotlib / seaborn
-- Bayesian 建模：scipy.stats.beta（Beta-Binomial 解析解）
+卡方检验 p=0.0086，统计显著——但这是大样本（9 万）放大微小随机误差的结果，而非分流机制故障的信号。如果样本量缩小至 1,000，同等偏差不会触发显著性。
 
-## 复现步骤
+**结论**：分组轻微不均衡，判断为随机波动，实验结论有效。
 
-```bash
-git clone https://github.com/wnt0801/cookie-cats-ab-test.git
-cd cookie-cats-ab-test
-pip install -r requirements.txt
-python analysis/01_eda.py
-python analysis/02_srm_check.py
-python analysis/03_frequentist.py
-python analysis/04_bayesian.py
-python analysis/05_business_summary.py
+---
+
+## 分析结论
+
+### 频率派检验（双比例 z-test）
+
+| 指标 | p-value | 95% CI | 结论 |
+|------|---------|--------|------|
+| 1 日留存 | 0.0744 | [-0.0006, 0.0124] | 不显著，CI 跨零，方向不明 |
+| 7 日留存 | 0.0016 | [0.0031, 0.0133] | 显著，gate_30 更优 |
+
+7 日留存 CI 下限 0.31%：在行业 7 日留存基准（约 15-18%）下，1% 量级的提升具有业务意义。p-value 确认显著性，CI 给出效应量范围——两者回答的不是同一个问题。
+
+### 贝叶斯验证（Beta-Binomial + Monte Carlo）
+
+**Prior**：Beta(1, 1)，均匀无信息先验，不预设方向。
+
+**Posterior 更新**：
+```
+post_gate30 = Beta(1 + 成功次数, 1 + 失败次数)
+post_gate40 = Beta(1 + 成功次数, 1 + 失败次数)
 ```
 
-输出图表保存至 `outputs/` 目录。
+对两组各采样 100,000 次，逐次比较大小，统计 gate_30 胜出比例：
+
+| 指标 | P(gate_30 > gate_40) |
+|------|----------------------|
+| 1 日留存 | 0.9627 |
+| 7 日留存 | 0.9992 |
+
+两套框架方向完全一致，结论置信度高。
+
+---
+
+## 业务建议
+
+**建议：不上线 gate_40。**
+
+理由：
+1. 7 日留存在频率派和贝叶斯两套框架下均指向 gate_30 更优
+2. 效应量有业务意义（差距 0.31%-1.33%，行业留存基数低，1% 提升显著）
+3. 次日留存虽未达统计显著（p=0.0744），但方向一致，gate_40 无正向信号
+
+**数据局限与后续建议**：
+
+本次分析不含变现数据。若产品团队认为"玩更多关卡 → 更多付费"，建议补充以下指标后再决策：
+
+- 各分组 ARPU（每用户平均收入）
+- 两组 sum_gamerounds 分布差异
+- 付费转化率对比
+
+在变现数据缺失的情况下，仅凭留存结论建议不上线，是保守但有据可查的判断。
+
+---
+
+## 技术实现
+
+- **语言**：Python 3.x
+- **主要库**：pandas、scipy、matplotlib、seaborn
+- **检验方法**：双比例 z 检验（proportions_ztest）、卡方检验（SRM）
+- **贝叶斯实现**：Beta 共轭先验，100,000 次 Monte Carlo 采样
+
+**项目结构**：
+```
+├── analysis/
+│   ├── 01_eda.py              # 探索性数据分析
+│   ├── 02_srm_check.py        # 实验设计验证（SRM 检验）
+│   ├── 03_frequentist.py      # 频率派检验（z-test）
+│   ├── 04_bayesian.py         # 贝叶斯分析（Beta-Binomial）
+│   └── 05_business_summary.py # 业务结论汇总
+├── data/
+│   └── cookie_cats.csv
+├── outputs/                   # 可视化输出图片
+├── requirements.txt
+└── README.md
+```

@@ -32,4 +32,4 @@ print(f"p 值：{p_value:.4f}")
 if p_value < 0.05:
     print("⚠️  SRM 检测到异常：流量分配显著偏离 1:1，实验结论需谨慎")
 else:
-    print("✅  流量分配正常，无 SRM 问题，可继续分析")
+    print("✅  流量分配正常，无 SRM 问题，可继续分析")   

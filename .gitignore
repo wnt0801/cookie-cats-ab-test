@@ -4,5 +4,5 @@ __pycache__/
 *.pyc
 cursor/
 .venv/
+草稿.py
 "@ | Out-File -FilePath .gitignore -Encoding utf8
-
