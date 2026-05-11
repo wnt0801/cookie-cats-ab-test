@@ -1,8 +1,6 @@
-@"
-.idea/
+﻿.idea/
 __pycache__/
 *.pyc
 cursor/
 .venv/
 草稿.py
-"@ | Set-Content -Path .gitignore -Encoding utf8
